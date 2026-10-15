@@ -1,0 +1,28 @@
+{
+  "model": "claude-opus-5-5",
+  "modelSettings": {
+    "claude-opus-5-5": { "effortLevel": "high" }
+  },
+  "advisorModel": "opus",
+  "env": {
+    "CLAUDE_CODE_SUBAGENT_MODEL": "claude-haiku-5-5"
+  },
+  "hooks": {
+    "PreToolUse": [
+      { "matcher": "Bash",
+        "hooks": [ { "type": "command", "command": "$HOME/.claude/hooks/guard-subagent.sh", "timeout": 10 } ] }
+    ],
+    "PostToolUse": [
+      { "matcher": "Edit|Write|MultiEdit",
+        "hooks": [ { "type": "command", "command": "$HOME/.claude/hooks/quick-check.sh", "timeout": 30 } ] }
+    ],
+    "Stop": [
+      { "hooks": [ { "type": "command", "command": "$HOME/.claude/hooks/verify-on-stop.sh", "timeout": 260 } ] }
+    ],
+    "SubagentStop": [
+      { "hooks": [ { "type": "command", "command": "$HOME/.claude/hooks/verify-on-stop.sh", "timeout": 260 } ] },
+      { "matcher": "worker-.*|reviewer.*",
+        "hooks": [ { "type": "command", "command": "$HOME/.claude/hooks/log-subagent.sh", "timeout": 20 } ] }
+    ]
+  }
+}

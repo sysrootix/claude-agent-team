@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Summary of worker and reviewer runs from ~/.claude/worker-runs.jsonl.
+# worker-stats [days=7]
+set -uo pipefail
+days=${1:-7}
+f="$HOME/.claude/worker-runs.jsonl"
+[ -s "$f" ] || { echo "no data: $f is empty"; exit 0; }
+since=$(date -u -v-"${days}"d +%FT%TZ 2>/dev/null || date -u -d "-${days} days" +%FT%TZ)
+jq -rs --arg since "$since" --arg days "$days" '
+  # take the last event per agent_id (after verify-hook retries)
+  [ .[] | select(.ts >= $since) ] | group_by(.agent_id) | map(last) as $runs
+  | ($runs | map(select(.type|startswith("reviewer")))) as $rev
+  | "Last \($days) days: runs \($runs|length)",
+    ( $runs | group_by(.type)[] |
+      "  \(.[0].type): \(length) · outcomes \(group_by(.outcome) | map("\(.[0].outcome)=\(length)") | join(" "))"
+      + " · median \((map(.secs)|sort|.[length/2|floor]) / 60 | floor) min"
+      + " · advisor calls \(map(.advisor)|add)"),
+    ( if ($rev|length) > 0 then
+        "Reviews with verdict accept: \(($rev|map(select(.outcome=="accept"))|length) * 100 / ($rev|length) | floor)% (\($rev|length) reviews)"
+      else empty end )
+' "$f"
+j="$HOME/.claude/worker-journal.md"
+if [ -f "$j" ]; then echo "Defect entries in journal: $(grep -cE '^(- )?[0-9]{1,4}[.-]' "$j")"; fi
